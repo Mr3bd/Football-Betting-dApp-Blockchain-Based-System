@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Football Betting</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Football Betting</h1>
+
+  <h2>Unfinished Matches</h2>
+  <ul id="unfinishedMatches"></ul>
+
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', function() {
+        const contractAddress = '0x70c93444De497bc8310095b8B2eeB5eFaf0368cd'; // Replace with your actual contract address
+    const contractABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_homeTeam",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_awayTeam",
+				"type": "string"
+			}
+		],
+		"name": "addMatch",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_matchId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_winner",
+				"type": "string"
+			}
+		],
+		"name": "distributeFunds",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_matchId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_winner",
+				"type": "string"
+			}
+		],
+		"name": "finishMatch",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_matchId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_selectedTeam",
+				"type": "string"
+			}
+		],
+		"name": "placeBet",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "getMatch",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "homeTeam",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "awayTeam",
+						"type": "string"
+					},
+					{
+						"internalType": "bool",
+						"name": "finished",
+						"type": "bool"
+					},
+					{
+						"internalType": "string",
+						"name": "winner",
+						"type": "string"
+					}
+				],
+				"internalType": "struct FootballBetting.MatchInfo",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getMatchCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_matchId",
+				"type": "uint256"
+			}
+		],
+		"name": "getTotalBets",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "matches",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "homeTeam",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "awayTeam",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "finished",
+				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "winner",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+      // Check if MetaMask is installed
+      if (typeof window.ethereum !== 'undefined') {
+        // Request access to user's MetaMask accounts
+        window.ethereum.enable()
+          .then(function(accounts) {
+            const web3 = new Web3(window.ethereum);
+            const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+            // Function to place a bet on a match
+            async function placeBet(matchId, winner, betAmount) {
+              try {
+                const defaultAccount = accounts[0];
+                const match = await contract.methods.getMatch(matchId).call();
+
+                if (match.finished) {
+                  alert('This match has already been finished');
+                  return;
+                }
+
+                const data = contract.methods.placeBet(matchId, winner).encodeABI();
+                const txObject = {
+                  from: defaultAccount,
+                  to: contractAddress,
+                  gas: 3000000,
+                  data: data,
+                  value: web3.utils.toWei(betAmount.toString(), 'ether'),
+                };
+
+                const txReceipt = await web3.eth.sendTransaction(txObject);
+                console.log('Bet placed. Transaction hash:', txReceipt.transactionHash);
+                alert('Bet placed successfully!');
+              } catch (error) {
+                console.error('Error placing bet:', error);
+                alert('Error placing bet. Please check the console for details.');
+              }
+            }
+
+            // Function to display unfinished matches
+            async function displayUnfinishedMatches() {
+              const unfinishedMatches = document.getElementById('unfinishedMatches');
+              unfinishedMatches.innerHTML = '';
+
+              try {
+                const matchesCount = await contract.methods.getMatchCount().call();
+                for (let i = 0; i < matchesCount; i++) {
+                  const match = await contract.methods.getMatch(i).call();
+                  if (!match.finished) {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${match.homeTeam} vs ${match.awayTeam}`;
+
+                    const winnerInput = document.createElement('input');
+                    winnerInput.type = 'text';
+                    winnerInput.placeholder = 'Enter the winner';
+
+                    const betAmountInput = document.createElement('input');
+                    betAmountInput.type = 'text';
+                    betAmountInput.placeholder = 'Enter the bet amount';
+
+                    const placeBetButton = document.createElement('button');
+                    placeBetButton.textContent = 'Place Bet';
+                    placeBetButton.addEventListener('click', function() {
+                      const winner = winnerInput.value;
+                      const betAmount = betAmountInput.value;
+                      if (!winner || !betAmount) {
+                        alert('Please enter the winner and bet amount');
+                        return;
+                      }
+                      placeBet(i, winner, betAmount);
+                    });
+
+                    listItem.appendChild(winnerInput);
+                    listItem.appendChild(betAmountInput);
+                    listItem.appendChild(placeBetButton);
+
+                    unfinishedMatches.appendChild(listItem);
+
+
+                  }
+                }
+              } catch (error) {
+                console.error('Error retrieving unfinished matches:', error);
+                alert('Error retrieving unfinished matches. Please check the console for details.');
+              }
+            }
+
+            // Display unfinished matches on page load
+            displayUnfinishedMatches();
+          })
+          .catch(function(error) {
+            console.error('Failed to connect to MetaMask:', error);
+            alert('Failed to connect to MetaMask. Please check the console for details.');
+          });
+      } else {
+        console.error('MetaMask is not installed');
+        alert('MetaMask is not installed. Please install MetaMask to interact with this contract.');
+      }
+    });
+  </script>
+</body>
+</html>

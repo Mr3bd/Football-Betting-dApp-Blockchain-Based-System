@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Matches Management</title>
+	<link rel="stylesheet" href="../style.css">
+</head>
+
+<body>
+	<h1>Football Betting</h1>
+	<h2>Add Match</h2>
+	<label for="homeTeam">Home Team:</label>
+	<input type="text" id="homeTeam" name="homeTeam">
+	<br>
+	<label for="awayTeam">Away Team:</label>
+	<input type="text" id="awayTeam" name="awayTeam">
+	<br>
+	<button id="addMatchButton">Add Match</button>
+
+	<hr>
+
+	<h2>Match List</h2>
+	<ul id="matchList"></ul>
+
+	<script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+	<script>
+		window.addEventListener('DOMContentLoaded', function () {
+			const contractAddress = '0x70c93444De497bc8310095b8B2eeB5eFaf0368cd'; // Replace with your actual contract address
+			const contractABI = [
+				{
+					"inputs": [
+						{
+							"internalType": "string",
+							"name": "_homeTeam",
+							"type": "string"
+						},
+						{
+							"internalType": "string",
+							"name": "_awayTeam",
+							"type": "string"
+						}
+					],
+					"name": "addMatch",
+					"outputs": [],
+					"stateMutability": "nonpayable",
+					"type": "function"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "_matchId",
+							"type": "uint256"
+						},
+						{
+							"internalType": "string",
+							"name": "_winner",
+							"type": "string"
+						}
+					],
+					"name": "distributeFunds",
+					"outputs": [],
+					"stateMutability": "payable",
+					"type": "function"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "_matchId",
+							"type": "uint256"
+						},
+						{
+							"internalType": "string",
+							"name": "_winner",
+							"type": "string"
+						}
+					],
+					"name": "finishMatch",
+					"outputs": [],
+					"stateMutability": "nonpayable",
+					"type": "function"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "_matchId",
+							"type": "uint256"
+						},
+						{
+							"internalType": "string",
+							"name": "_selectedTeam",
+							"type": "string"
+						}
+					],
+					"name": "placeBet",
+					"outputs": [],
+					"stateMutability": "payable",
+					"type": "function"
+				},
+				{
+					"inputs": [],
+					"stateMutability": "nonpayable",
+					"type": "constructor"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "index",
+							"type": "uint256"
+						}
+					],
+					"name": "getMatch",
+					"outputs": [
+						{
+							"components": [
+								{
+									"internalType": "uint256",
+									"name": "id",
+									"type": "uint256"
+								},
+								{
+									"internalType": "string",
+									"name": "homeTeam",
+									"type": "string"
+								},
+								{
+									"internalType": "string",
+									"name": "awayTeam",
+									"type": "string"
+								},
+								{
+									"internalType": "bool",
+									"name": "finished",
+									"type": "bool"
+								},
+								{
+									"internalType": "string",
+									"name": "winner",
+									"type": "string"
+								}
+							],
+							"internalType": "struct FootballBetting.MatchInfo",
+							"name": "",
+							"type": "tuple"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function"
+				},
+				{
+					"inputs": [],
+					"name": "getMatchCount",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "_matchId",
+							"type": "uint256"
+						}
+					],
+					"name": "getTotalBets",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function"
+				},
+				{
+					"inputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					],
+					"name": "matches",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "id",
+							"type": "uint256"
+						},
+						{
+							"internalType": "string",
+							"name": "homeTeam",
+							"type": "string"
+						},
+						{
+							"internalType": "string",
+							"name": "awayTeam",
+							"type": "string"
+						},
+						{
+							"internalType": "bool",
+							"name": "finished",
+							"type": "bool"
+						},
+						{
+							"internalType": "string",
+							"name": "winner",
+							"type": "string"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function"
+				},
+				{
+					"inputs": [],
+					"name": "owner",
+					"outputs": [
+						{
+							"internalType": "address",
+							"name": "",
+							"type": "address"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function"
+				}
+			];
+			// Check if MetaMask is installed
+			if (typeof window.ethereum !== 'undefined') {
+				// Request access to user's MetaMask accounts
+				window.ethereum.enable()
+					.then(function (accounts) {
+						const web3 = new Web3(window.ethereum);
+						const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+						// Function to add a match
+						async function addMatch() {
+							const homeTeam = document.getElementById('homeTeam').value;
+							const awayTeam = document.getElementById('awayTeam').value;
+
+							try {
+								const defaultAccount = accounts[0];
+
+								const data = contract.methods.addMatch(homeTeam, awayTeam).encodeABI();
+
+								const txObject = {
+									from: defaultAccount,
+									to: contractAddress,
+									gas: 3000000,
+									data: data,
+								};
+
+								const txReceipt = await web3.eth.sendTransaction(txObject);
+
+								console.log('Match added. Transaction hash:', txReceipt.transactionHash);
+								alert('Match added successfully!');
+								refreshMatchList();
+							} catch (error) {
+								console.error('Error adding match:', error);
+								alert('Error adding match. Please check the console for details.');
+							}
+						}
+
+						// Finish match!
+						async function finishMatch(matchId) {
+							const winner = prompt('Enter the winning team:');
+							if (!winner) return;
+
+							try {
+								const defaultAccount = accounts[0];
+
+								const data = contract.methods.finishMatch(matchId, winner).encodeABI();
+
+								const txObject = {
+									from: defaultAccount,
+									to: contractAddress,
+									gas: 3000000,
+									data: data,
+								};
+
+								const txReceipt = await web3.eth.sendTransaction(txObject);
+
+								console.log('Match finished. Transaction hash:', txReceipt.transactionHash);
+								alert('Match finished successfully!');
+								refreshMatchList();
+							} catch (error) {
+								console.error('Error finishing match:', error);
+								alert('Error finishing match. Please check the console for details.');
+							}
+						}
+
+
+						// Function to refresh the match list
+						async function refreshMatchList() {
+							const matchList = document.getElementById('matchList');
+							matchList.innerHTML = ''; // Clear the existing list
+
+							try {
+								const matchesCount = await contract.methods.getMatchCount().call();
+								for (let i = 0; i < matchesCount; i++) {
+									const match = await contract.methods.getMatch(i).call();
+									if (match.finished != true) {
+										const listItem = document.createElement('li');
+										listItem.textContent = `${match.homeTeam} vs ${match.awayTeam}`;
+
+										const finishButton = document.createElement('button');
+										finishButton.textContent = 'Finish';
+										finishButton.addEventListener('click', () => finishMatch(match.id));
+										listItem.appendChild(finishButton);
+										//   const totalBets = await contract.methods.getTotalBets(i).call();
+
+										// // Create a span element to display the total bets
+										//  const totalBetsDisplay = document.createElement('span');
+										//  totalBetsDisplay.textContent = `Total Bets: ${totalBets}`;
+										//  listItem.appendChild(totalBetsDisplay);
+
+
+										matchList.appendChild(listItem);
+									}
+								}
+							} catch (error) {
+								console.error('Error retrieving match list:', error);
+								alert('Error retrieving match list. Please check the console for details.');
+							}
+						}
+
+						// Attach event listener to the button
+						const addMatchButton = document.getElementById('addMatchButton');
+						addMatchButton.addEventListener('click', addMatch);
+
+						// Refresh the match list on page load
+						refreshMatchList();
+					})
+					.catch(function (error) {
+						console.error('Failed to connect to MetaMask:', error);
+						alert('Failed to connect to MetaMask. Please check the console for details.');
+					});
+			} else {
+				console.error('MetaMask is not installed');
+				alert('MetaMask is not installed. Please install MetaMask to interact with this contract.');
+			}
+		});
+	</script>
+</body>
+
+</html>
